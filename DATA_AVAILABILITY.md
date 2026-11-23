@@ -7,7 +7,8 @@ Fuzz-Oriented Empirical Study**
 
 > The aggregated experimental results underlying Table 2 and Figure 2,
 > analysis scripts, experimental configurations, and compiler failure
-> reproduction materials are available at **[REPOSITORY URL]**.
+> reproduction materials are available at
+> **https://github.com/Sodabubble0/srhf-compiler-fuzzing**.
 >
 > The curated dataset of 3,980 supervised fine-tuning examples, trained model
 > checkpoints, and the complete generated test corpus are maintained by the
@@ -16,15 +17,16 @@ Fuzz-Oriented Empirical Study**
 > failure case; full model retraining uses the curated training set and
 > checkpoints.
 
-Replace **[REPOSITORY URL]** with the final HTTPS link (GitHub or Zenodo)
-before submission. Use the URL field only for the HTTPS link.
+The repository URL is
+**https://github.com/Sodabubble0/srhf-compiler-fuzzing**. If a Zenodo DOI is
+added later, update this statement and the submission-system link.
 
 ## Suggested submission-system fields
 
 | Field | Suggested value |
 |---|---|
 | Do you want to share data? | Yes |
-| Link to data repository | the final HTTPS URL |
+| Link to data repository | https://github.com/Sodabubble0/srhf-compiler-fuzzing |
 | Repository name | GitHub or Zenodo (whichever hosts the repository) |
 | Source of data | Original data |
 | Title of the data set | SRHF Compiler Fuzzing: Aggregated Results and Analysis Artifacts |

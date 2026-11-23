@@ -6,6 +6,8 @@ Fuzz-Oriented Empirical Study**
 Authors: Qinghao Zhang, Dehong Gao, Lingyue Huang, Qichao Zhang,
 Libin Yang, Xiaoyan Cai.
 
+Repository: https://github.com/Sodabubble0/srhf-compiler-fuzzing
+
 This repository is the **results and analysis package** accompanying the
 final manuscript. It contains the aggregate data needed to recompute Table 2,
 rebuild both panels of Figure 2, inspect the experimental configuration, and
@@ -301,7 +303,8 @@ diagnostics, and upstream status.
 
 This package provides the aggregated experimental results underlying Table 2
 and Figure 2, the analysis scripts, the experimental configuration, and the
-compiler failure reproduction materials.
+compiler failure reproduction materials at
+https://github.com/Sodabubble0/srhf-compiler-fuzzing.
 
 The curated dataset of 3,980 supervised fine-tuning examples, trained model
 checkpoints, and the complete generated test corpus are maintained separately.
