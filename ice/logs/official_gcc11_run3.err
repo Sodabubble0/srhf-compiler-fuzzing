@@ -1,0 +1,10 @@
+‘
+Internal compiler error: Error reporting routines re-entered.
+0x7acfc0429d8f __libc_start_call_main
+	../sysdeps/nptl/libc_start_call_main.h:58
+0x7acfc0429e3f __libc_start_main_impl
+	../csu/libc-start.c:392
+Please submit a full bug report,
+with preprocessed source if appropriate.
+Please include the complete backtrace with any bug report.
+See <file:///usr/share/doc/gcc-11/README.Bugs> for instructions.

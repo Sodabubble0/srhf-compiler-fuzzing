@@ -1,0 +1,376 @@
+# =============================================================================
+# Training configurations used for the 15 configurations in Table 2
+# =============================================================================
+# Paper: "Survey of Supervised and Reinforced Hybrid Fine-tuning and
+#         Fuzz-Oriented Empirical Study"
+#
+# Provenance
+# ----------
+# Reconstructed from the final training scripts, training logs, and persisted
+# training_args.bin files of the runs that produced Table 2. Common settings
+# are stated once under `common_defaults`; each entry lists only its overrides.
+#
+# Privacy
+# -------
+# This file contains no training samples, no model weights, no access tokens,
+# and no absolute filesystem paths. Path placeholders such as <BASE_MODEL_DIR>
+# stand for locations on the original experimental machine.
+# =============================================================================
+
+paper_table: "Table 2"
+
+base_model:
+  name: Qwen2.5-Coder-7B-Instruct
+  role: common initialization for every trained configuration
+
+common_defaults:
+  framework: TRL GRPOTrainer 0.29.0
+  precision: bf16
+  lora:
+    r: 8
+    lora_alpha: 32
+    lora_dropout: 0.0
+    target_modules: [q_proj, v_proj]
+    task_type: CAUSAL_LM
+    trainable_parameters: 2523136        # approximately 0.0331% of the base model
+  optimizer:
+    name: adamw_torch_fused
+    betas: [0.9, 0.999]
+    weight_decay: 0.0
+    max_grad_norm: 1.0
+  lr_scheduler:
+    type: linear
+    warmup_steps: 0
+  learning_rate: 1.0e-5
+  batching:
+    per_device_train_batch_size: 8
+    gradient_accumulation_steps: 16
+    completions_per_optimizer_step: 128   # 8 prompts x 16 rollouts
+  rl_objective:
+    loss_type: dapo
+    scale_rewards: group
+    kl_coefficient: 0.0                   # no reference model
+    epsilon: 0.2
+    num_iterations: 1
+    steps_per_generation: 16
+    num_generations: 16
+    max_completion_length: 512
+  rollout_sampling:
+    temperature: 1.0                      # TRL GRPOConfig default; not overridden
+    top_p: 1.0
+    top_k: 0
+  training_prompt: >-
+    Instruction: {instruction}\nInput: {input}\n
+    IMPORTANT: You must output the C++ code wrapped in <code> and </code> tags.
+    Example: <code>int main() {...}</code>
+  training_prompt_exceptions:
+    - method: "DFT (stage 1 of DFT→GSPO)"
+      protocol: "Qwen chat template + dedicated system prompt requiring <think> then <code>"
+    - method: "DFT→GSPO (stage 2)"
+      protocol: "Qwen chat template + dedicated system prompt requiring <think> then <code>"
+  code_extraction:
+    primary: "<code>...</code>"
+    fallback_1: "```cpp fenced code block"
+    fallback_2: "C++ structural signature heuristics (#include, int main, class, template, ...)"
+  format_gate:
+    require_non_empty: true
+    minimum_characters: 10
+    require_cpp_signature: true
+    require_main: false                   # exception: the SRFT run additionally requires main
+
+# -----------------------------------------------------------------------------
+# Reward definitions. Two families are used; they are NOT identical across
+# methods. See `reward_family` in each method entry.
+# -----------------------------------------------------------------------------
+reward_definitions:
+  family_a:
+    description: "Used by the reference SFT→GSPO run and by CHORD, SRFT, UFT, TRAPO, LUFFY, DFT→GSPO, SASR, SuperRL."
+    format_fail: -2.0
+    format_pass_base: 2.0
+    compile_success: "2.0 + coverage_term"
+    compiler_crash: "2.0 + 10.0"
+    coverage_term:
+      new_edge: 2.0                       # WEIGHT_NOVELTY
+      rare_edge: "1.0 / sqrt(edge_count + 1), counted only when > 0.1"
+      per_sample_cap: 10.0
+  family_b:
+    description: "Used by DYPO and MIFO. Five structured states; scores are frozen per group and committed after the group."
+    FORMAT_FAIL: -2.0
+    COMPILE_FAIL: -1.0
+    EVAL_FAIL: -1.0                       # infrastructure failure; excluded from valid/success denominators
+    SUCCESS: "1.0 + coverage_term (0..10)"
+    CRASH: "1.0 + 10.0"
+  coverage_only_variant:
+    description: "Used by the GRPO and GSPO reference runs (onlycov). No +/-2 base score and no crash bonus."
+    score: "coverage_term only"
+  no_frequency_decay_variant:
+    description: "Ablation variant only; not used in Table 2."
+    score: "new_edge 2.0, rarity term removed"
+
+# -----------------------------------------------------------------------------
+# Per-method configurations
+# -----------------------------------------------------------------------------
+methods:
+
+  "Base model":
+    category: Base
+    trained: false
+    notes: "Untrained Qwen2.5-Coder-7B-Instruct."
+
+  "SFT":
+    category: SFT
+    paper_table_label: "SFT (LoRA)"
+    trained: true
+    framework: LLaMA-Factory 0.9.4.dev0
+    script: train_sft.yaml
+    init: base model
+    steps: 189                            # 3 epochs
+    overrides:
+      lora:
+        r: 16
+        lora_alpha: 32
+        lora_dropout: 0.05
+        target_modules: all-linear         # q/k/v/o/gate/up/down
+      learning_rate: 2.0e-4
+      lr_scheduler:
+        type: cosine
+        warmup_ratio: 0.03
+      batching:
+        per_device_train_batch_size: 8
+        gradient_accumulation_steps: 4
+        num_devices: 2
+      cutoff_len: 2048
+    checkpoint: checkpoint-189
+    notes: >-
+      A second one-epoch/125-step checkpoint exists on the original machine.
+      Table 2 uses the three-epoch checkpoint-189 run.
+    reward_family: null
+
+  "GRPO":
+    category: RFT
+    trained: true
+    script: grpo_onlycov.py               # reference run: Qwen2.5-7B-10000-GRPO-onlycov2
+    init: base model
+    steps: 497
+    notes: >-
+      grpo_fixcrash.py is the crash+coverage variant; the GRPO row in Table 2
+      is the coverage-only run.
+    reward_family: coverage_only_variant
+
+  "GSPO":
+    category: RFT
+    trained: true
+    script: "gspo_cov.py family (exact launch script not preserved; inferred from training_args.bin)"
+    init: base model
+    steps: 497
+    overrides:
+      rl_objective:
+        importance_sampling_level: sequence
+        epsilon: 3.0e-4
+        max_completion_length: 256
+    notes: >-
+      The 228,581-line run is Qwen2.5-7B-10000-GSPO. Its exact launch script
+      was not preserved; the persisted training_args.bin matches the
+      gspo_cov.py family. gspo_fixcrash.py ran 400 steps plus a 97-step
+      continuation and is a different variant.
+    reward_family: coverage_only_variant
+
+  "SFT→GSPO":
+    category: Sequential SFT–RFT
+    trained: true
+    script: gspo_ex.py
+    init: "SFT checkpoint-189"
+    steps: 248
+    overrides:
+      rl_objective:
+        importance_sampling_level: sequence
+        epsilon: 3.0e-4
+        max_completion_length: 256
+        num_generations: 8                # persisted training_args.bin; differs from source default 16
+    notes: "Conventional sequential two-stage pipeline."
+    reward_family: family_a
+
+  "CHORD":
+    category: Joint optimization
+    trained: true
+    script: chord/train_chord.py
+    init: base model
+    steps: 497
+    overrides:
+      objective: "L = (1 - mu) * L_GRPO + mu * L_SFT_phi"
+      mu_schedule: "peak 1.0 -> valley 0.0; linear warmup 100 steps + cosine decay over 300 steps"
+      phi: "p * (1 - p)"
+      sft_batch_size: 4
+      sft_normalization: token_mean
+    additional_sft_data: "3,582 examples (separate SFT split; train 3,582 / val 398)"
+    reward_family: family_a
+
+  "SRFT":
+    category: Joint optimization
+    trained: true
+    script: srft_fuzz_final.py
+    init: base model
+    steps: 497
+    overrides:
+      objective: "L_self + 1.0 * L_demo-SFT + 1.0 * L_demo-RL"
+      entropy_weights:
+        SFT: "0.5 * exp(-H)"
+        RL: "0.1 * exp(+H), applied only to self-generated tokens with positive advantage"
+      format_gate:
+        require_main: true
+    demonstration_data: "3,980 -> 1,589 effective examples"
+    reward_family: family_a
+    notes: "Demonstration rewards are precomputed and frozen offline."
+
+  "UFT":
+    category: Joint optimization
+    trained: true
+    script: uft_fuzz_v3.py
+    init: base model
+    steps: 497
+    overrides:
+      hint_schedule: "cosine p(t): 0.95 -> 0.05, reaching 0 after T_hint = 300 steps"
+      hint_construction: "Binomial sampling of 4 think blocks and 4 code blocks from the expert trajectory"
+      hint_ce_coefficient: 0.1
+    reward_family: family_a
+
+  "TRAPO":
+    category: Joint optimization
+    trained: true
+    script: TRAPO/trapo_fuzz_v2.py
+    init: base model
+    steps: 497
+    training_time: "approximately 27.4 hours on one A800-80GB"
+    overrides:
+      micro_group_sizes: [8, 4, 2, 2]      # total 16 = num_generations
+      prefix_ratios: [0.0, 0.2, 0.5, 1.0]
+      guidance_thresholds: [-1.0, 0.5, 0.7, 0.9]
+      trust_region_alpha: 0.1
+      objective: "L = L_GRPO + 1.0 * L_TrSFT (token-level normalization)"
+      expert_prefix_placement: "completion region, excluded from RL loss via TRL tool_mask"
+      expert_content: "reasoning-only (<think> content) in the reported V2 run"
+    reward_family: family_a
+    notes: "V1 (full expert trajectory) exists but Table 2 reports V2."
+
+  "LUFFY":
+    category: Joint optimization
+    trained: true
+    script: "run_luffy_trl.py + luffy_trainer.py"
+    init: base model
+    steps: 1990
+    overrides:
+      learning_rate: 1.0e-6
+      batching:
+        per_device_train_batch_size: 1
+        gradient_accumulation_steps: 16
+      rl_objective:
+        num_generations: 8                # 7 on-policy + 1 off-policy
+        max_completion_length: 512
+      off_policy_advantage_mode: joint
+      off_policy_reshape: p_div_p_gamma
+      off_policy_gamma: 0.1
+      on_policy_clip: none                # L = -ratio * A
+      off_policy_loss: "-shaped_ratio * A"
+    reward_family: family_a
+
+  "DYPO":
+    category: Adaptive routing
+    trained: true
+    script: DYPO/grpo_v3_dypo.py
+    init: base model
+    steps: 497
+    overrides:
+      batching:
+        per_device_train_batch_size: 1
+        gradient_accumulation_steps: 16
+      routing:
+        HARD: "group valid_rate <= 0.0625 -> SFT branch (verified teacher required)"
+        EASY: "valid_rate >= 0.875 AND reward std <= 0.5 AND novelty <= 0.05 -> skip"
+        MID: "all remaining groups -> GRPO"
+      teacher_data: "verified_sft.json (2,134 examples)"
+    reward_family: family_b
+
+  "SASR":
+    category: Adaptive routing
+    trained: true
+    script: SASR/sasr_v3_full_trainer.py
+    init: base model
+    steps: "50 warmup + 450 adaptive"
+    overrides:
+      batching:
+        per_device_train_batch_size: 1
+        gradient_accumulation_steps: 16
+      routing:
+        p_sft: "G_last_sft / (G_last_sft + gamma * G_warmup), gamma = 1.0"
+        selection: "stochastic SFT/GRPO choice at each adaptive step"
+        observed_split: "SFT 213 steps / GRPO 237 steps"
+    reward_family: family_a
+
+  "SuperRL":
+    category: Adaptive routing
+    trained: true
+    script: SuperRL/superrl_fuzz_final.py
+    init: base model
+    steps: 497
+    overrides:
+      gate: "c(x) = 1[exists SUCCESS or CRASH rollout for prompt x] -> GRPO, otherwise SFT"
+      objective: "L = (N_RL / N) * mean(L_RL) + (N_SFT / N) * mean(L_SFT)"
+      rl_normalization: "RL term additionally scaled by T_all / T_RL"
+      sft_target: "full <think> + <code> completion"
+    reward_family: family_a
+
+  "MIFO":
+    category: Policy shaping
+    trained: true
+    script: MIFO/mifo_v3_param_freeze.py
+    init: base model
+    steps: "1,500 RL steps + 6 SFT phases (4 rounds)"
+    overrides:
+      batching:
+        per_device_train_batch_size: 1
+        gradient_accumulation_steps: 16
+      hard_sample_threshold: 0.2
+      buffer_size: 16
+      entropy_token_fraction: 0.2
+      parameter_freeze:
+        k: 0.5
+        alpha: 0.5
+        level: "LoRA tensor (56 of 112 tensors protected)"
+    reward_family: family_b
+    notes: "Additional training budget relative to the 497-step runs."
+
+  "DFT→GSPO":
+    category: Policy shaping
+    trained: true
+    script: DFT_GSPO/dft_gspo_train.py
+    init: "DFT SFT adapter merged into the base model (full-parameter checkpoint)"
+    steps: 497
+    overrides:
+      rl_objective:
+        importance_sampling_level: sequence
+        epsilon: 3.0e-4
+        max_completion_length: 256
+      training_prompt_protocol: "chat template + dedicated system prompt"
+    stage_1_dft:
+      script: dft_sft.py
+      objective: "DFT loss = -stop_gradient(p) * log(p), gamma = 1"
+      learning_rate: 5.0e-5
+      batching:
+        per_device_train_batch_size: 4
+        gradient_accumulation_steps: 4
+      lr_scheduler:
+        type: cosine
+        warmup_ratio: 0.05
+      optimizer: adamw_torch
+      steps: "125 or 249 depending on the checkpoint"
+      cutoff_len: 2048
+      protocol: "chat template + dedicated system prompt"
+    reward_family: family_a
+
+# -----------------------------------------------------------------------------
+# Integrity notes
+# -----------------------------------------------------------------------------
+notes:
+  - "Single-run configurations; no repeated seeds and no significance tests."
+  - "Learning-rate and batch exceptions are intentional: method-specific hyperparameters were tuned per approach."
+  - "The 3,980 supervised examples, model checkpoints, and generated corpus are maintained in the authors' experimental environment."

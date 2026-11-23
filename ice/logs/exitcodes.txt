@@ -1,0 +1,17 @@
+=== 复现验证 (2026-10-13) ===
+编译器版本:
+  instrumented: g++ (GCC) 13.1.0
+  official g++: g++ (Ubuntu 11.4.0-1ubuntu1~22.04.2) 11.4.0
+  clang control: Ubuntu clang version 13.0.1-2ubuntu2.2
+
+命令: $CXX -x c++ -std=c++23 minimized.cpp -o /tmp/ice_test  (ulimit -v 8GB, timeout 60s)
+
+instr_gcc13 run1: exit=1  ICE=1
+instr_gcc13 run2: exit=1  ICE=1
+instr_gcc13 run3: exit=1  ICE=1
+instr_gcc13 run4: exit=1  ICE=1
+instr_gcc13 run5: exit=1  ICE=1
+official_gcc11 run1: exit=1  ICE=1
+official_gcc11 run2: exit=1  ICE=1
+official_gcc11 run3: exit=1  ICE=1
+clang13_control  run1: exit=1  ICE=0

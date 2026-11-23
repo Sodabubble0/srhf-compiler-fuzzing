@@ -1,0 +1,18 @@
+minimized.cpp:1:83: error: no viable conversion from returned value of type '(lambda at minimized.cpp:1:83)' to function return type 'decltype([](auto &x) {
+    return x;
+})' (aka 'C<int>::(lambda at minimized.cpp:1:51)')
+template<class T> struct C { auto g() -> decltype([](auto&x){return x;}) { return [](auto&x){return x;}; } };
+                                                                                  ^~~~~~~~~~~~~~~~~~~~~
+minimized.cpp:2:22: note: in instantiation of member function 'C<int>::g' requested here
+C<int> o; auto l = o.g();
+                     ^
+minimized.cpp:1:51: note: candidate constructor (the implicit copy constructor) not viable: no known conversion from '(lambda at minimized.cpp:1:83)' to 'const C<int>::(lambda at minimized.cpp:1:51) &' for 1st argument
+template<class T> struct C { auto g() -> decltype([](auto&x){return x;}) { return [](auto&x){return x;}; } };
+                                                  ^                               ~~~~~~~~~~~~~~~~~~~~~
+minimized.cpp:1:51: note: candidate constructor (the implicit move constructor) not viable: no known conversion from '(lambda at minimized.cpp:1:83)' to 'C<int>::(lambda at minimized.cpp:1:51) &&' for 1st argument
+template<class T> struct C { auto g() -> decltype([](auto&x){return x;}) { return [](auto&x){return x;}; } };
+                                                  ^                               ~~~~~~~~~~~~~~~~~~~~~
+minimized.cpp:1:83: note: candidate template ignored: could not match 'auto (*)(type-parameter-0-0 &)' against 'C<int>::(lambda at minimized.cpp:1:51)'
+template<class T> struct C { auto g() -> decltype([](auto&x){return x;}) { return [](auto&x){return x;}; } };
+                                                                                  ^
+1 error generated.

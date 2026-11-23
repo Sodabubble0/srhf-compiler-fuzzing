@@ -1,0 +1,16 @@
+approach,total_calls,extracted_count,compiled_count,final_line_coverage,verified_ice_count,prompt_protocol,coverage_sampling
+Base model,10000,7781,5229,188590,0,legacy,batch_20
+SFT,10000,9517,4976,207548,0,legacy,hourly
+GRPO,10000,9508,6829,211647,0,legacy,hourly
+GSPO,10000,9698,6958,228581,0,legacy,hourly
+SFT→GSPO,10000,7896,5296,200112,0,legacy,hourly
+CHORD,10000,9689,3574,174090,0,legacy,batch_20
+SRFT,10000,8653,6135,199661,0,legacy,batch_20
+UFT,10000,9553,5428,232512,0,legacy,batch_20
+TRAPO,10000,8978,2797,193740,1,legacy,batch_20
+LUFFY,10000,8358,5579,213868,0,legacy,batch_20
+DYPO,10000,7310,4559,186057,0,legacy,batch_20
+SASR,10000,8004,3628,194086,0,legacy,batch_20
+SuperRL,10000,8965,5691,203315,0,legacy,batch_20
+MIFO,10000,9297,6451,191119,0,legacy,batch_20
+DFT→GSPO,10000,9848,4156,154845,0,chat,batch_20

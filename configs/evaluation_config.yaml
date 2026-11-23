@@ -1,0 +1,157 @@
+# =============================================================================
+# Evaluation configuration for the 10,000-call experiments in Table 2
+# =============================================================================
+# Every configuration is evaluated with the same generation budget, prompt,
+# extraction rule, compiler target, and coverage-collection pipeline, except
+# for the two documented protocol differences listed under `exceptions`.
+#
+# Path placeholders such as <GCC-13-COVERAGE> stand for locations on the
+# original experimental machine. This file contains no private paths.
+# =============================================================================
+
+paper_table: "Table 2"
+evaluation_budget:
+  calls_per_configuration: 10000
+  sampling: "repeated calls to the same fixed prompt; one generated program per call"
+  deduplication: none
+  configurations: 15
+
+base_model:
+  name: Qwen2.5-Coder-7B-Instruct
+  note: "Unmodified base model, SFT/RL checkpoints, and merged checkpoints are all evaluated through the same script."
+
+target:
+  compiler: GCC 13.1.0
+  build: "self-built GCC-13-COVERAGE with source-level coverage instrumentation"
+  source_commit: cc035c5d8672f87dc8c2756d9f8367903aa72d93   # releases/gcc-13.1.0, 2023-04-26
+  language_standard: C++23
+  coverage_scope: "GCC source lines executed while compiling the generated C++ program"
+  coverage_is_not: "coverage of the generated program itself"
+
+generation:
+  prompt: >-
+    Generate a cpp code snippet that can trigger compiler crash. Strictly use
+    the format of:<think>the content of the thinking</think><code>content
+    code</code>
+  do_sample: true
+  temperature: 1.0
+  max_new_tokens: 1024
+  batch_size: 16
+  input_truncation_tokens: 2048
+  top_p: 0.8                 # model generation_config.json; not overridden by the evaluation script
+  top_k: 20                  # model generation_config.json
+  repetition_penalty: 1.1    # model generation_config.json
+  prompt_protocol:
+    legacy:
+      description: "Raw prompt string passed directly to the tokenizer, without a chat template."
+      applies_to: [Base model, SFT, GRPO, GSPO, SFT→GSPO, CHORD, SRFT, UFT, TRAPO, LUFFY, DYPO, SASR, SuperRL, MIFO]
+    chat:
+      description: "Qwen chat template plus a dedicated system prompt requiring <think> then <code>."
+      system_prompt: >-
+        You are an expert in C++ compiler vulnerability discovery. You must
+        strictly adhere to the following output format: first, enclose your
+        analysis and reasoning process within <think> and </think> tags; then,
+        enclose the final constructed C++ code within <code> and </code> tags.
+        Do not output any other extraneous explanatory text.
+      applies_to: [DFT→GSPO]
+
+extraction:
+  rule: "re.search(r'<code>(.+?)</code>', completion, flags=re.DOTALL)"
+  postprocessing:
+    - "strip surrounding whitespace"
+    - "unescape &lt;, &gt;, &amp;"
+  valid_definition: "a non-empty <code>...</code> block"
+  invalid_definition: "no <code>...</code> block, or an empty block"
+  semantic_check: none
+  note: >-
+    Evaluation validity is intentionally only an extraction check. Syntactic and
+    semantic validity are measured separately by compilation.
+
+compilation:
+  command: >-
+    timeout 10s <GCC-13-COVERAGE>/bin/g++ -x c++ -std=c++23 <case>.cpp
+    -o <work_dir>/coverage/<case>
+  timeout_seconds: 10
+  timeout_exit_code: 124
+  memory_limit:
+    mechanism: RLIMIT_AS
+    bytes: 8589934592          # 8 GiB
+    scope: "bash -> g++ -> cc1plus inheritance"
+  process_isolation: "new process group; kill the whole group on timeout"
+  link_step: included
+  coverage_flag_on_test_case: false
+
+coverage_collection:
+  redirect:
+    GCOV_PREFIX: "<work_dir>/gcda_feed"
+    GCOV_PREFIX_STRIP: 0
+  merge:
+    step: "copy the generated .gcda tree back into gcc-coverage-build/gcc"
+    build_directory: "<PROJECT_ROOT>/target/g++/gcc-coverage-build/gcc"
+  summary_tool: lcov 1.16
+  command: >-
+    lcov --capture --directory . --output-file coverage.info
+    --gcov-tool <GCC-13-COVERAGE>/bin/gcov
+    --ignore-errors source --ignore-errors graph
+  covered_line_definition: "the `lines......:` hit count reported by lcov --summary"
+  batching:
+    batch_count: 20
+    batch_size: "max(1, floor(valid_count / 20))"
+    sampling: "cumulative covered lines are recorded after each batch"
+    final_coverage: "maximum cumulative covered lines across the 20 batches"
+    legacy_hourly_sampling: "SFT, GRPO, GSPO, SFT→GSPO reference runs sampled coverage at hourly intervals instead of 20 batches"
+
+metrics:
+  extraction_rate:
+    formula: "N_extracted / N_calls"
+    denominator: 10000
+  conditional_compile_rate:
+    formula: "N_compiled / N_extracted"
+    denominator: "extracted programs"
+  end_to_end_yield:
+    formula: "N_compiled / N_calls"
+    denominator: 10000
+  final_line_coverage:
+    definition: "maximum cumulative GCC source lines covered during the run"
+  verified_ice_count:
+    definition: "number of manually inspected and reproduced compiler internal errors"
+    note: "Raw CRASH_ICE classifier labels are NOT used as the reported count."
+
+error_classification:
+  note: >-
+    The evaluation pipeline records a fine-grained error category for every
+    failed compilation. The CRASH_ICE category is known to over-trigger because
+    GCC echoes source lines in diagnostics and the classifier's regular
+    expressions can match echoed comments or ordinary cascade messages.
+  ordered_categories:
+    - CRASH_ICE
+    - COMPILE_TIMEOUT
+    - FORMAT_FAIL
+    - TEMPLATE_ERROR
+    - SYNTAX_ERROR
+    - SEMANTIC_ERROR
+    - NO_NEW_COVERAGE
+    - HAS_NEW_COVERAGE
+  verified_ice_protocol:
+    - "strip GCC-echoed source lines (^\\s*\\d+\\s*\\|) and caret lines"
+    - "require an `internal compiler error:` line, or `Please submit a full bug report` plus a stack trace, or a signal exit"
+    - "inspect the source and reproduce the failure with both the evaluated build and a stock compiler where available"
+  verified_ice_counts:
+    TRAPO: 1
+    all_other_configurations: 0
+
+exceptions:
+  - configuration: "SFT, GRPO, GSPO, SFT→GSPO"
+    difference: "coverage was sampled hourly"
+    consequence: "only the final coverage value is comparable; their coverage trajectories are not used in cross-method plots"
+  - configuration: "DFT→GSPO"
+    difference: "evaluation used the Qwen chat template and a dedicated system prompt"
+    consequence: "this is the only configuration in Table 2 evaluated with the chat protocol"
+  - configuration: "TRAPO"
+    difference: "one verified ICE; 5/5 reproduction on the instrumented build and 3/3 on stock GCC 11.4.0"
+    consequence: "counted as 1 in the verified_ice_count column"
+
+interpretation_notes:
+  - "All configurations are single runs. No repeated seeds and no significance tests."
+  - "Coverage is compiler-side line coverage of GCC 13.1.0, not coverage of the generated programs."
+  - "The 10,000-call budget is per configuration; generated programs are not deduplicated across calls."

@@ -1,0 +1,52 @@
+# Compiler : g++ (GCC) 13.1.0, self-built GCC-13-COVERAGE, commit cc035c5d8672f87dc8c2756d9f8367903aa72d93
+# Command  : g++ -x c++ -std=c++23 minimized.cpp -o /tmp/ice_test
+# Exit code: 1
+# Source   : minimized.cpp (2 lines, 136 bytes)
+# Note     : ICE diagnostic portion of run 1; the complete stderr, including
+#            .gcda path warnings, is in logs/instr_gcc13_run1.stderr.
+#
+‘
+internal compiler error: error reporting routines re-entered.
+0x10985ff push_template_decl(tree_node*, bool)
+	.././../gcc-13/gcc/cp/pt.cc:5865
+0xe4e948 start_preparsed_function(tree_node*, tree_node*, int)
+	.././../gcc-13/gcc/cp/decl.cc:17371
+0xec7309 start_lambda_function(tree_node*, tree_node*)
+	.././../gcc-13/gcc/cp/lambda.cc:1675
+0x10db198 tsubst_lambda_expr(tree_node*, tree_node*, int, tree_node*)
+	.././../gcc-13/gcc/cp/pt.cc:20184
+0x10e3fe1 tsubst_copy_and_build(tree_node*, tree_node*, int, tree_node*)
+	.././../gcc-13/gcc/cp/pt.cc:21720
+0x10c8bb9 tsubst(tree_node*, tree_node*, int, tree_node*)
+	.././../gcc-13/gcc/cp/pt.cc:16667
+0xe809cb dump_template_bindings
+	.././../gcc-13/gcc/cp/error.cc:492
+0xe86ed3 dump_substitution
+	.././../gcc-13/gcc/cp/error.cc:1701
+0xe8844e dump_function_decl
+	.././../gcc-13/gcc/cp/error.cc:1870
+0xe858ee dump_decl
+	.././../gcc-13/gcc/cp/error.cc:1419
+0xe8f8f0 decl_to_string
+	.././../gcc-13/gcc/cp/error.cc:3307
+0xe9451f cp_printer
+	.././../gcc-13/gcc/cp/error.cc:4481
+0x451b868 pp_format(pretty_printer*, text_info*)
+	.././../gcc-13/gcc/pretty-print.cc:1475
+0x451bd83 pp_format_verbatim(pretty_printer*, text_info*)
+	.././../gcc-13/gcc/pretty-print.cc:1536
+0x451cac1 pp_verbatim(pretty_printer*, char const*, ...)
+	.././../gcc-13/gcc/pretty-print.cc:1790
+0xe91981 print_instantiation_full_context
+	.././../gcc-13/gcc/cp/error.cc:3720
+0xe9221d maybe_print_instantiation_context
+	.././../gcc-13/gcc/cp/error.cc:3868
+0xe90844 cp_diagnostic_starter
+	.././../gcc-13/gcc/cp/error.cc:3558
+0x44f3624 diagnostic_report_diagnostic(diagnostic_context*, diagnostic_info*)
+	.././../gcc-13/gcc/diagnostic.cc:1593
+0x44f41da diagnostic_impl
+	.././../gcc-13/gcc/diagnostic.cc:1756
+Please submit a full bug report, with preprocessed source (by using -freport-bug).
+Please include the complete backtrace with any bug report.
+参阅 <https://gcc.gnu.org/bugs/> 以获取指示。

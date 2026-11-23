@@ -1,0 +1,16 @@
+category,approach,extraction_rate_pct,conditional_compile_rate_pct,end_to_end_yield_pct,final_line_coverage,verified_ice_count
+Base,Base model,77.81,67.20,52.29,188590,0
+SFT,SFT,95.17,52.29,49.76,207548,0
+RFT,GRPO,95.08,71.82,68.29,211647,0
+RFT,GSPO,96.98,71.75,69.58,228581,0
+Sequential SFT–RFT,SFT→GSPO,78.96,67.07,52.96,200112,0
+Joint optimization,CHORD,96.89,36.89,35.74,174090,0
+Joint optimization,SRFT,86.53,70.90,61.35,199661,0
+Joint optimization,UFT,95.53,56.82,54.28,232512,0
+Joint optimization,TRAPO,89.78,31.15,27.97,193740,1
+Joint optimization,LUFFY,83.58,66.75,55.79,213868,0
+Adaptive routing,DYPO,73.10,62.37,45.59,186057,0
+Adaptive routing,SASR,80.04,45.33,36.28,194086,0
+Adaptive routing,SuperRL,89.65,63.48,56.91,203315,0
+Policy shaping,MIFO,92.97,69.39,64.51,191119,0
+Policy shaping,DFT→GSPO,98.48,42.20,41.56,154845,0
