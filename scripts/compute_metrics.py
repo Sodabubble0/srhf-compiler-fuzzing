@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Recompute the three generation-usability metrics from raw counts.
 
-Definitions (paper Section 3.4, Equations 1-3):
+Definitions (paper Section 4.4, Equations 12-14):
 
     Extraction Rate           = N_extracted / N_calls
     Conditional Compile Rate  = N_compiled  / N_extracted
