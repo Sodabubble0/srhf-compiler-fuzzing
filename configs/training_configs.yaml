@@ -362,7 +362,7 @@ methods:
         type: cosine
         warmup_ratio: 0.05
       optimizer: adamw_torch
-      steps: "125 or 249 depending on the checkpoint"
+      steps: 125
       cutoff_len: 2048
       protocol: "chat template + dedicated system prompt"
     reward_family: family_a
